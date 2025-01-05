@@ -1,7 +1,21 @@
-# Tauri + React + Typescript
+# RPG Editor
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+## What is this?
 
-## Recommended IDE Setup
+RPGを制作するためのエディタ。
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+[rpg-infrastructure](https://github.com/00secs/rpg-infrastructure)向けのRustコードを自動生成する。
+
+## Build
+
+次をインストール：
+
+- [Rust](https://www.rust-lang.org/)
+- [Bun](https://bun.sh/)
+
+次を実行：
+
+1. `bun install`
+2. `bun run tauri build`
+
+尚、`bun run tauri dev`を実行すると、変更を監視しながら開発を進めることができる。

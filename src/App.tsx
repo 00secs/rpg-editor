@@ -1,51 +1,131 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import './App.css'
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+import {useCallback, useEffect, useState} from 'react'
+import MapPage from './pages/map/MapPage'
+import DialogProvider, {useDialog} from './helper/Dialog'
+import styled from 'styled-components'
+import {defaultMapData, isMapData, MapData} from './pages/map/types'
+import {listenNewMap, listenOpenJSONFile, listenSave, sendSaveJSONFile} from './util/api'
+import {Window} from '@tauri-apps/api/window'
+import {save} from '@tauri-apps/plugin-dialog'
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+type PageType = 'map' | null
+
+// NOTE: useContextを用いるためにはProvider下のコンポーネントを出し分ける必要があるので。
+function Content() {
+  const {openDialog} = useDialog()
+
+  const [filePath, setFilePath] = useState('')
+  const [pageType, setPageType] = useState<PageType>(null)
+  const [mapData, setMapData] = useState<MapData>(defaultMapData())
+
+  const saveData = useCallback(async () => {
+    // ページが開かれていない場合はリターン
+    if (pageType === null) {
+      return
+    }
+    // 保存先を確定
+    const path =
+      filePath !== ''
+        ? filePath
+        : ((await save({
+            filters: [
+              {
+                name: 'JSON',
+                extensions: ['json'],
+              },
+            ],
+          })) ?? '')
+    if (path === '') {
+      openDialog('保存先が見つかりません。')
+      return
+    }
+    // ページタイプに合わせてデータを選択
+    const data = pageType === 'map' ? JSON.stringify({type: 'map', data: mapData}) : ''
+    // 保存
+    const result = await sendSaveJSONFile(path, data)
+    if (result) {
+      Window.getCurrent().setTitle(path)
+      setFilePath(path)
+    } else {
+      openDialog('ファイルの保存に失敗しました。')
+    }
+  }, [filePath, pageType, mapData, openDialog])
+
+  useEffect(() => {
+    listenNewMap(() => {
+      Window.getCurrent().setTitle('[New Map]')
+      setFilePath('')
+      setPageType('map')
+      setMapData(defaultMapData())
+    })
+
+    listenOpenJSONFile((event) => {
+      try {
+        // JSONにパース
+        const json = JSON.parse(event.payload.body)
+        // プロパティを確認
+        if ('type' in json === false || 'data' in json === false) {
+          throw new Error()
+        }
+        // ディスパッチ
+        switch (json['type']) {
+          case 'map':
+            if (isMapData(json['data'])) {
+              Window.getCurrent().setTitle(event.payload.path)
+              setFilePath(event.payload.path)
+              setPageType(json['type'])
+              setMapData(json['data'])
+              return
+            }
+            break
+        }
+        // エラー
+        throw new Error()
+      } catch (_) {
+        openDialog('無効なデータです。')
+        return
+      }
+    })
+  }, [])
+  useEffect(() => {
+    listenSave(saveData)
+  }, [saveData])
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
+    <>
+      {pageType === 'map' ? (
+        <MapPage
+          data={mapData}
+          updateData={setMapData}
         />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
-  );
+      ) : (
+        <DefaultPage>
+          <DefaultMessage>ファイルを開いてください</DefaultMessage>
+        </DefaultPage>
+      )}
+    </>
+  )
 }
 
-export default App;
+export default function App() {
+  return (
+    <main className='container'>
+      <DialogProvider>
+        <Content />
+      </DialogProvider>
+    </main>
+  )
+}
+
+const DefaultPage = styled.div`
+  display: flex;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+`
+
+const DefaultMessage = styled.span`
+  text-align: center;
+  width: 100%;
+`
