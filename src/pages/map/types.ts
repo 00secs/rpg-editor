@@ -10,9 +10,17 @@ export function isMapData(value: any): value is MapData {
     Array.isArray(value.tiles) &&
     value.tiles.length > 0 &&
     value.tiles.every(
-      (row: any) => Array.isArray(row) && row.length > 0 && row.every((tile) => isMapTileData(tile))
+      (n: any) => Array.isArray(n) && n.length > 0 && n.every((m) => isMapTileData(m))
     )
   )
+}
+export function parseMapData(s: string): MapData | null {
+  try {
+    const o = JSON.parse(s)
+    return isMapData(o) ? o : null
+  } catch (_) {
+    return null
+  }
 }
 export function defaultMapData(): MapData {
   return {

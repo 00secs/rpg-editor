@@ -6,8 +6,7 @@ use tauri::{menu::*, AppHandle, Builder, Emitter, Runtime};
 // NOTE: Builder.menu()がクロージャを要求する都合上、
 //       メニューアイテムのインスタンスからIDを参照できないため、
 //       定数で共通化する。
-const NEW_MAP_MENU_ID: &str = "newmap";
-const OPEN_FILE_MENU_ID: &str = "openfile";
+const OPEN_WORKSPACE_MENU_ID: &str = "openproject";
 const SAVE_MENU_ID: &str = "save";
 
 fn create_menu<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
@@ -33,11 +32,7 @@ fn create_menu<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
                 "File",
                 true,
                 &[
-                    &MenuItemBuilder::with_id(NEW_MAP_MENU_ID, "New Map")
-                        .accelerator("CmdOrCtrl+M")
-                        .build(handle)?,
-                    &PredefinedMenuItem::separator(handle)?,
-                    &MenuItemBuilder::with_id(OPEN_FILE_MENU_ID, "Open...")
+                    &MenuItemBuilder::with_id(OPEN_WORKSPACE_MENU_ID, "Open Workspace")
                         .accelerator("CmdOrCtrl+O")
                         .build(handle)?,
                     &PredefinedMenuItem::separator(handle)?,
@@ -59,15 +54,17 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .menu(create_menu)
         .on_menu_event(|app, event| {
-            if event.id() == NEW_MAP_MENU_ID {
-                let _ = app.emit("new_map", {});
-            } else if event.id() == OPEN_FILE_MENU_ID {
-                r2f::open_json_file(app);
+            if event.id() == OPEN_WORKSPACE_MENU_ID {
+                r2f::open_workspace(app);
             } else if event.id() == SAVE_MENU_ID {
                 let _ = app.emit("save", {});
             }
         })
-        .invoke_handler(tauri::generate_handler![f2r::save_json_file])
+        .invoke_handler(tauri::generate_handler![
+            f2r::new_file,
+            f2r::save_file,
+            f2r::read_file
+        ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| panic!("{}", e));
 }

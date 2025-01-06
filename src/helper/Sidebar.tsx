@@ -4,13 +4,14 @@ import styled from 'styled-components'
 type Props = {
   children?: ReactNode
   initialWidth: number
+  isLeft: boolean
 }
 
 /**
- * 左に伸縮できるサイドバー。
+ * サイドバー。
  *
  * 高さ100%。
- * 左に線があり、それをつまんで幅を変えられる。
+ * 左あるいは右に線があり、それをつまんで幅を変えられる。
  * はみ出た部分は非表示になる。
  */
 export default function Sidebar(props: Props) {
@@ -22,7 +23,8 @@ export default function Sidebar(props: Props) {
   })
 
   const handleMouseMove = (event: MouseEvent) => {
-    setWidth(resizeInfo.current.startWidth + resizeInfo.current.startPosition - event.pageX)
+    const k = props.isLeft ? -1 : 1
+    setWidth(resizeInfo.current.startWidth + (resizeInfo.current.startPosition - event.pageX) * k)
   }
   const handleMouseUp = () => {
     document.removeEventListener('mousemove', handleMouseMove)
@@ -31,17 +33,31 @@ export default function Sidebar(props: Props) {
 
   return (
     <Container style={{width: width}}>
-      <Handle
-        onMouseDown={(event) => {
-          resizeInfo.current = {
-            startWidth: width,
-            startPosition: event.pageX,
-          }
-          document.addEventListener('mousemove', handleMouseMove)
-          document.addEventListener('mouseup', handleMouseUp)
-        }}
-      />
+      {!props.isLeft && (
+        <Handle
+          onMouseDown={(event) => {
+            resizeInfo.current = {
+              startWidth: width,
+              startPosition: event.pageX,
+            }
+            document.addEventListener('mousemove', handleMouseMove)
+            document.addEventListener('mouseup', handleMouseUp)
+          }}
+        />
+      )}
       <Content>{props.children}</Content>
+      {props.isLeft && (
+        <Handle
+          onMouseDown={(event) => {
+            resizeInfo.current = {
+              startWidth: width,
+              startPosition: event.pageX,
+            }
+            document.addEventListener('mousemove', handleMouseMove)
+            document.addEventListener('mouseup', handleMouseUp)
+          }}
+        />
+      )}
     </Container>
   )
 }

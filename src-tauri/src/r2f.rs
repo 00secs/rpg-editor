@@ -1,46 +1,53 @@
-use std::{fs::File, io::Read};
+use std::{fs::File, io::Read, path::Path};
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_dialog::DialogExt;
 
 #[derive(Clone, serde::Serialize)]
-pub struct OpenJSONFileEventPayload {
+struct OpenWorkspacePayload {
     path: String,
     body: String,
 }
-pub fn open_json_file(app: &AppHandle) {
+pub fn open_workspace(app: &AppHandle) {
     let app = app.clone();
-    app.dialog()
-        .file()
-        .add_filter("JSON", &["json"])
-        .pick_file(move |file_path| {
-            let Some(file_path) = file_path.map(|n| n.to_string()) else {
-                return;
+    app.dialog().file().pick_folder(move |path| {
+        // 準備
+        let Some(path) = path.map(|n| n.to_string()) else {
+            return;
+        };
+        if !Path::new(&path).is_dir() {
+            app.dialog()
+                .message(format!("{}にディレクトリが存在しません。", &path));
+            return;
+        }
+        // ファイル読込
+        let file_path = Path::new(&path).join("project.json");
+        let body = if file_path.is_file() {
+            let mut file = match File::open(&file_path) {
+                Ok(n) => n,
+                Err(e) => {
+                    app.dialog().message(format!("{}", e));
+                    return;
+                }
             };
-            let Ok(mut file) = File::open(&file_path) else {
-                app.dialog()
-                    .message(format!("{}が開けませんでした。", &file_path));
-                return;
-            };
-            let mut contents = String::new();
-            if file.read_to_string(&mut contents).is_err() {
-                app.dialog()
-                    .message(format!("{}の読込に失敗しました。", &file_path));
-                return;
+            let mut body = String::new();
+            match file.read_to_string(&mut body) {
+                Ok(_) => body,
+                Err(e) => {
+                    app.dialog().message(format!("{}", e));
+                    return;
+                }
             }
-            if app
-                .emit(
-                    "open_json_file",
-                    OpenJSONFileEventPayload {
-                        path: file_path.to_string(),
-                        body: contents,
-                    },
-                )
-                .is_err()
-            {
-                app.dialog().message(format!(
-                    "{}のバックエンドからフロントエンドへの転送に失敗しました。",
-                    &file_path
-                ));
-            }
-        });
+        } else {
+            "{\"maps\":[]}".to_string()
+        };
+        // クライアントへ送信
+        let payload = OpenWorkspacePayload {
+            path: path.clone(),
+            body,
+        };
+        if let Err(e) = app.emit("open_workspace", payload) {
+            app.dialog()
+                .message(format!("ワークスペース'{}'のロードに失敗：{}", path, e));
+        }
+    });
 }
