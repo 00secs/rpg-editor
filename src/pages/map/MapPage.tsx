@@ -122,7 +122,7 @@ export default function MapPage(props: Props) {
     img.onload = () => setImage(img)
     img.onerror = () => message(`${data.image}の読み込みに失敗しました。`)
     img.src = convertFileSrc(data.image)
-  }, [data, data.image])
+  }, [data.image])
 
   return (
     <Container>
