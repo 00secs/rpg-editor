@@ -1,10 +1,16 @@
 import './App.css'
 
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
 import MapPage from './pages/map/MapPage'
 import styled from 'styled-components'
-import {listenOpenWorkspace, sendNewFile, sendReadFile, sendSaveFile} from './util/api'
-import {message} from '@tauri-apps/plugin-dialog'
+import {
+  listenClosing,
+  listenOpenWorkspace,
+  sendNewFile,
+  sendReadFile,
+  sendSaveFile,
+} from './util/api'
+import {ask, message} from '@tauri-apps/plugin-dialog'
 import Sidebar from './helper/Sidebar'
 import Box from './helper/Box'
 import {VscMapFilled, VscNewFile} from 'react-icons/vsc'
@@ -47,10 +53,13 @@ export default function App() {
 
   // ファイル
   const [page, setPage] = useState<JSX.Element>(<></>)
+  const saved = useRef(true)
   // ファイル選択コールバック
-  // TODO: 未保存状態ならば警告を出す。
   const selectFile = useCallback(
     async (type: 'map' | null, name: string) => {
+      if (!saved.current && !(await ask('ファイルが未保存ですがよろしいですか。'))) {
+        return
+      }
       if (type === null) {
         setPage(<></>)
         return
@@ -72,12 +81,13 @@ export default function App() {
             <MapPage
               path={path}
               data={data}
+              saved={saved}
             />
           )
           break
       }
     },
-    [rootPath]
+    [rootPath, saved]
   )
   // ファイル追加コールバック
   const newFile = useCallback(
@@ -115,6 +125,15 @@ export default function App() {
     },
     [rootPath, project]
   )
+
+  // ウィンドウクローズ時に未保存状態であれば警告を出す
+  useEffect(() => {
+    listenClosing(async (event) => {
+      if (!saved.current && !(await ask('ファイルが未保存ですがよろしいですか。'))) {
+        event.preventDefault()
+      }
+    })
+  }, [saved])
 
   return (
     <main className='container'>

@@ -10,34 +10,37 @@ import FilePicker from '../../helper/form/FilePicker'
 import NumberInput from '../../helper/form/NumberInput'
 import {message} from '@tauri-apps/plugin-dialog'
 import {listenSave, sendSaveFile} from '../../util/api'
-import { Window } from '@tauri-apps/api/window'
+import {Window} from '@tauri-apps/api/window'
 
 type Props = {
   path: string
   data: MapData
+  saved: React.MutableRefObject<boolean>
 }
 
 export default function MapPage(props: Props) {
   // データ
   const [data, _setData] = useState<MapData>(props.data)
-  const [saved, setSaved] = useState(true)
   // setDataラッパー
   // NOTE: 安全にsavedを変更するため。
-  const setData = useCallback((data: MapData) => {
-    _setData(data)
-    setSaved(false)
-  }, [])
-  // データロードエフェクト
-  // NOTE: props.dataの変更はロードなので保存済みであることが保証されている。
-  useEffect(() => {
+  const setData = useCallback(
+    (data: MapData) => {
+      _setData(data)
+      props.saved.current = false
+      Window.getCurrent().setTitle(`* ${props.path}`)
+    },
+    [props.saved, props.path]
+  )
+
+  // ロード時コールバック
+  const onLoad = useCallback(() => {
     _setData(props.data)
-    setSaved(true)
-  }, [props.data])
-  // ウィンドウタイトル変更エフェクト
-  useEffect(() => {
-    const p = saved ? "" : "*"
-    Window.getCurrent().setTitle(`${p} ${props.path}`)
-  }, [props.path, saved])
+    props.saved.current = true
+    Window.getCurrent().setTitle(props.path)
+  }, [props.data, props.saved, props.path])
+  // データロードエフェクト
+  useEffect(() => onLoad(), [props.data])
+
   // メニュー「File>Save」を購読
   useEffect(() => {
     listenSave(async () => {
@@ -46,9 +49,10 @@ export default function MapPage(props: Props) {
         message('保存に失敗しました。')
         return
       }
-      setSaved(true)
+      props.saved.current = true
+      Window.getCurrent().setTitle(props.path)
     })
-  }, [data])
+  }, [data, props.saved])
 
   const [image, setImage] = useState<HTMLImageElement | null>(null)
   const [i, setI] = useState(0)

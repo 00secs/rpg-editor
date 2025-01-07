@@ -1,5 +1,6 @@
 import {invoke} from '@tauri-apps/api/core'
 import {EventCallback, listen, UnlistenFn} from '@tauri-apps/api/event'
+import {CloseRequestedEvent, Window} from '@tauri-apps/api/window'
 
 // ============================================================================================= //
 //     listen                                                                                    //
@@ -56,3 +57,21 @@ type ReadFileResponse = {
 export function sendReadFile(path: string): Promise<ReadFileResponse> {
   return invoke('read_file', {path})
 }
+
+// ============================================================================================= //
+//     tauri                                                                                     //
+// ============================================================================================= //
+
+export const listenClosing = (() => {
+  let current: Promise<void> = Promise.resolve()
+  let unlisten: UnlistenFn | null = null
+  return async (cls: (event: CloseRequestedEvent) => void) => {
+    current = current.then(async () => {
+      if (unlisten !== null) {
+        unlisten()
+      }
+      unlisten = await Window.getCurrent().onCloseRequested(cls)
+    })
+    await current
+  }
+})()
