@@ -15,6 +15,7 @@ import Sidebar from './helper/Sidebar'
 import Box from './helper/Box'
 import {VscMapFilled, VscNewFile} from 'react-icons/vsc'
 import {defaultMapData, parseMapData} from './pages/map/types'
+import Prompt from './helper/Propmpt'
 
 type Project = {
   maps: string[]
@@ -33,6 +34,9 @@ function parseProject(s: string): Project | null {
     o.maps.every((n: any) => typeof n === 'string')
   return check ? o : null
 }
+
+type PageType = 'map'
+type PageTypeWithNull = PageType | null
 
 export default function App() {
   // プロジェクト
@@ -53,10 +57,11 @@ export default function App() {
 
   // ファイル
   const [page, setPage] = useState<JSX.Element>(<></>)
+  const [promptState, setPromptState] = useState<PageTypeWithNull>(null)
   const saved = useRef(true)
   // ファイル選択コールバック
   const selectFile = useCallback(
-    async (type: 'map' | null, name: string) => {
+    async (type: PageTypeWithNull, name: string) => {
       if (!saved.current && !(await ask('ファイルが未保存ですがよろしいですか。'))) {
         return
       }
@@ -91,15 +96,11 @@ export default function App() {
   )
   // ファイル追加コールバック
   const newFile = useCallback(
-    async (type: 'map') => {
+    async (type: PageType, path: string) => {
       if (!project) {
         return
       }
       // ファイル作成
-      const path = prompt('ファイル名を入力してください。')
-      if (!path) {
-        return
-      }
       const nfr = await sendNewFile(`${rootPath}/${path}`, JSON.stringify(defaultMapData()))
       if (!nfr) {
         message(`${rootPath}/${path}の作成に失敗しました。`)
@@ -142,29 +143,44 @@ export default function App() {
           <DefaultMessage>ワークスペースを開いてください</DefaultMessage>
         </DefaultPage>
       ) : (
-        <Page>
-          <Sidebar
-            initialWidth={200}
-            isLeft={true}
-          >
-            <Box label='MAPS'>
-              <File onClick={() => newFile('map')}>
-                <VscNewFile />
-                <label>New Map</label>
-              </File>
-              {project.maps.map((n, i) => (
-                <File
-                  key={i}
-                  onClick={() => selectFile('map', n)}
-                >
-                  <VscMapFilled />
-                  <label>{n}</label>
+        <>
+          <Page>
+            <Sidebar
+              initialWidth={200}
+              isLeft={true}
+            >
+              <Box label='MAPS'>
+                <File onClick={() => setPromptState('map')}>
+                  <VscNewFile />
+                  <label>New Map</label>
                 </File>
-              ))}
-            </Box>
-          </Sidebar>
-          {page}
-        </Page>
+                {project.maps.map((n, i) => (
+                  <File
+                    key={i}
+                    onClick={() => selectFile('map', n)}
+                  >
+                    <VscMapFilled />
+                    <label>{n}</label>
+                  </File>
+                ))}
+              </Box>
+            </Sidebar>
+            {page}
+          </Page>
+          {promptState !== null && (
+            <Prompt
+              label='ファイル名を入力してください。'
+              onBlur={(value) => {
+                if (value === '') {
+                  message('ファイル名に空文字列は指定できません。')
+                  return
+                }
+                newFile(promptState, value)
+                setPromptState(null)
+              }}
+            />
+          )}
+        </>
       )}
     </main>
   )
