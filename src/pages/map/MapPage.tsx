@@ -6,13 +6,14 @@ import styled from 'styled-components'
 import Sidebar from '../../helper/Sidebar'
 import Box from '../../helper/Box'
 import SettingItem from '../../helper/SettingItem'
-import FilePicker from '../../helper/form/FilePicker'
+import TextInput from '../../helper/form/TextInput'
 import NumberInput from '../../helper/form/NumberInput'
 import {message} from '@tauri-apps/plugin-dialog'
 import {listenSave, sendSaveFile} from '../../util/api'
 import {Window} from '@tauri-apps/api/window'
 
 type Props = {
+  rootPath: string
   path: string
   data: MapData
   saved: React.MutableRefObject<boolean>
@@ -114,18 +115,17 @@ export default function MapPage(props: Props) {
 
   /**
    * MapData.imageが変わるたびにHTMLImageElementをリロードするエフェクト。
-   *
-   * ただし、空マップ作成時にリロードが入ることを避けるために、
-   * MapData.imageが空文字である場合はリロードしない。
    */
   useEffect(() => {
+    // TODO: 空文字列になった場合、canvasをクリアする。
     if (data.image === '') {
       return
     }
+    const path = `${props.rootPath}/${data.image}`
     const img = new Image()
     img.onload = () => setImage(img)
-    img.onerror = () => message(`${data.image}の読み込みに失敗しました。`)
-    img.src = convertFileSrc(data.image)
+    img.onerror = () => message(`${path}の読み込みに失敗しました。`)
+    img.src = convertFileSrc(path)
   }, [data.image])
 
   return (
@@ -156,14 +156,14 @@ export default function MapPage(props: Props) {
       >
         <Box label='MAP SETTINGS'>
           <SettingItem label='texture'>
-            <FilePicker
+            <TextInput
               value={data.image}
-              filters={[{name: 'PNG Files', extensions: ['png']}]}
-              onPicked={(path) => {
+              onChange={(path) => {
                 setData({
                   ...data,
                   image: path,
                 })
+                return true
               }}
             />
           </SettingItem>

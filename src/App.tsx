@@ -5,6 +5,7 @@ import MapPage from './pages/map/MapPage'
 import styled from 'styled-components'
 import {
   listenClosing,
+  listenExport,
   listenOpenWorkspace,
   sendNewFile,
   sendReadFile,
@@ -16,24 +17,7 @@ import Box from './helper/Box'
 import {VscMapFilled, VscNewFile} from 'react-icons/vsc'
 import {defaultMapData, parseMapData} from './pages/map/types'
 import Prompt from './helper/Propmpt'
-
-type Project = {
-  maps: string[]
-}
-function parseProject(s: string): Project | null {
-  let o: any = null
-  try {
-    o = JSON.parse(s)
-  } catch (e) {
-    return null
-  }
-  const check =
-    typeof o === 'object' &&
-    o !== null &&
-    Array.isArray(o.maps) &&
-    o.maps.every((n: any) => typeof n === 'string')
-  return check ? o : null
-}
+import {build, parseProject, Project} from './util/build'
 
 type PageType = 'map'
 type PageTypeWithNull = PageType | null
@@ -42,18 +26,15 @@ export default function App() {
   // プロジェクト
   const [rootPath, setRootPath] = useState('')
   const [project, setProject] = useState<Project | null>(null)
-  // メニュー「File>Open Workspace」を購読
+  // メニュー「File>Export」を購読
   useEffect(() => {
-    listenOpenWorkspace((event) => {
-      const project = parseProject(event.payload.body)
+    listenExport(() => {
       if (!project) {
-        message(`${event.payload.path}は無効なワークスペースです。`)
         return
       }
-      setRootPath(event.payload.path)
-      setProject(project)
+      build(rootPath, project)
     })
-  }, [])
+  }, [rootPath, project])
 
   // ファイル
   const [page, setPage] = useState<JSX.Element>(<></>)
@@ -84,6 +65,7 @@ export default function App() {
           }
           setPage(
             <MapPage
+              rootPath={rootPath}
               path={path}
               data={data}
               saved={saved}
@@ -92,7 +74,7 @@ export default function App() {
           break
       }
     },
-    [rootPath, saved]
+    [rootPath]
   )
   // ファイル追加コールバック
   const newFile = useCallback(
@@ -127,14 +109,30 @@ export default function App() {
     [rootPath, project]
   )
 
-  // ウィンドウクローズ時に未保存状態であれば警告を出す
   useEffect(() => {
+    // メニュー「File>Open Workspace」を購読
+    listenOpenWorkspace(async (event) => {
+      if (!saved.current && !(await ask('ファイルが未保存ですがよろしいですか。'))) {
+        return
+      }
+      const newProject = parseProject(event.payload.body)
+      if (!newProject) {
+        message(`${event.payload.path}は無効なワークスペースです。`)
+        return
+      }
+      setPage(<></>)
+      setPromptState(null)
+      setRootPath(event.payload.path)
+      setProject(newProject)
+    })
+
+    // ウィンドウクローズ時に未保存状態であれば警告を出す
     listenClosing(async (event) => {
       if (!saved.current && !(await ask('ファイルが未保存ですがよろしいですか。'))) {
         event.preventDefault()
       }
     })
-  }, [saved])
+  }, [])
 
   return (
     <main className='container'>

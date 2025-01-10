@@ -8,6 +8,7 @@ use tauri::{menu::*, AppHandle, Builder, Emitter, Runtime};
 //       定数で共通化する。
 const OPEN_WORKSPACE_MENU_ID: &str = "openproject";
 const SAVE_MENU_ID: &str = "save";
+const EXPORT_MENU_ID: &str = "export";
 
 fn create_menu<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     Ok(Menu::with_items(
@@ -40,6 +41,8 @@ fn create_menu<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
                         .accelerator("CmdOrCtrl+S")
                         .build(handle)?,
                     &PredefinedMenuItem::separator(handle)?,
+                    &MenuItemBuilder::with_id(EXPORT_MENU_ID, "Export").build(handle)?,
+                    &PredefinedMenuItem::separator(handle)?,
                     &PredefinedMenuItem::close_window(handle, Some("Quit"))?,
                 ],
             )?,
@@ -58,6 +61,8 @@ pub fn run() {
                 r2f::open_workspace(app);
             } else if event.id() == SAVE_MENU_ID {
                 let _ = app.emit("save", {});
+            } else if event.id() == EXPORT_MENU_ID {
+                let _ = app.emit("export", {});
             }
         })
         .invoke_handler(tauri::generate_handler![

@@ -38,6 +38,20 @@ export const listenSave = (() => {
   }
 })()
 
+export const listenExport = (() => {
+  let current: Promise<void> = Promise.resolve()
+  let unlisten: UnlistenFn | null = null
+  return async (cls: EventCallback<void>) => {
+    current = current.then(async () => {
+      if (unlisten !== null) {
+        unlisten()
+      }
+      unlisten = await listen('export', cls)
+    })
+    await current
+  }
+})()
+
 // ============================================================================================= //
 //     send                                                                                      //
 // ============================================================================================= //
