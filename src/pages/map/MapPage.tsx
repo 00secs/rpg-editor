@@ -1,5 +1,4 @@
 import {useCallback, useEffect, useMemo, useState} from 'react'
-import MapTile from './MapTile'
 import {convertFileSrc} from '@tauri-apps/api/core'
 import {defaultMapTileData, MapData, MapTileData} from './types'
 import styled from 'styled-components'
@@ -11,6 +10,7 @@ import NumberInput from '../../helper/form/NumberInput'
 import {message} from '@tauri-apps/plugin-dialog'
 import {listenSave, sendSaveFile} from '../../util/api'
 import {Window} from '@tauri-apps/api/window'
+import Canvas from '../../helper/Canvas'
 
 type Props = {
   rootPath: string
@@ -141,9 +141,16 @@ export default function MapPage(props: Props) {
                   setJ(ci)
                 }}
               >
-                <MapTile
+                <Canvas
                   image={image}
-                  data={n}
+                  left={n.uv.left}
+                  top={n.uv.top}
+                  right={n.uv.right}
+                  bottom={n.uv.bottom}
+                  width={48}
+                  height={48}
+                  styleWidth={48}
+                  styleHeight={48}
                 />
               </MapTileContainer>
             ))}
