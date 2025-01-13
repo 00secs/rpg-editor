@@ -1,5 +1,4 @@
 import {useCallback, useEffect, useMemo, useState} from 'react'
-import MapTile from './MapTile'
 import {convertFileSrc} from '@tauri-apps/api/core'
 import {defaultMapTileData, MapData, MapTileData} from './types'
 import styled from 'styled-components'
@@ -9,58 +8,18 @@ import SettingItem from '../../helper/SettingItem'
 import TextInput from '../../helper/form/TextInput'
 import NumberInput from '../../helper/form/NumberInput'
 import {message} from '@tauri-apps/plugin-dialog'
-import {listenSave, sendSaveFile} from '../../util/api'
-import {Window} from '@tauri-apps/api/window'
+import Canvas from '../../helper/Canvas'
+import EditPage, {EditPageChildProps} from '../../helper/EditPage'
 
-type Props = {
-  rootPath: string
-  path: string
-  data: MapData
-  saved: React.MutableRefObject<boolean>
-}
+type ChildProps = EditPageChildProps<MapData, {rootPath: string}>
 
-export default function MapPage(props: Props) {
-  // データ
-  const [data, _setData] = useState<MapData>(props.data)
-  // setDataラッパー
-  // NOTE: 安全にsavedを変更するため。
-  const setData = useCallback(
-    (data: MapData) => {
-      _setData(data)
-      props.saved.current = false
-      Window.getCurrent().setTitle(`* ${props.path}`)
-    },
-    [props.saved, props.path]
-  )
-
-  // ロード時コールバック
-  const onLoad = useCallback(() => {
-    _setData(props.data)
-    props.saved.current = true
-    Window.getCurrent().setTitle(props.path)
-  }, [props.data, props.saved, props.path])
-  // データロードエフェクト
-  useEffect(() => onLoad(), [props.data])
-
-  // メニュー「File>Save」を購読
-  useEffect(() => {
-    listenSave(async () => {
-      const result = await sendSaveFile(props.path, JSON.stringify(data))
-      if (!result) {
-        message('保存に失敗しました。')
-        return
-      }
-      props.saved.current = true
-      Window.getCurrent().setTitle(props.path)
-    })
-  }, [data, props.saved])
-
+function MapPageBody(props: ChildProps) {
   const [image, setImage] = useState<HTMLImageElement | null>(null)
   const [i, setI] = useState(0)
   const [j, setJ] = useState(0)
 
-  const mapTilesRowNumber = useMemo(() => data.tiles.length, [data.tiles])
-  const mapTilesColNumber = useMemo(() => data.tiles[0].length, [data.tiles])
+  const mapTilesRowNumber = useMemo(() => props.data.tiles.length, [props.data.tiles])
+  const mapTilesColNumber = useMemo(() => props.data.tiles[0].length, [props.data.tiles])
 
   /**
    * マップタイル配列をリサイズするコールバック。
@@ -69,30 +28,28 @@ export default function MapPage(props: Props) {
    */
   const resizeMapTiles = useCallback(
     (row: number, col: number) => {
-      const orow = data.tiles.length
-      const ocol = data.tiles[0].length
-      if (row === orow && col === ocol) {
+      if (row === mapTilesRowNumber && col === mapTilesColNumber) {
         return false
       }
       const newMapTiles: MapTileData[][] = []
       for (let i = 0; i < row; ++i) {
         const arr: MapTileData[] = []
         for (let j = 0; j < col; ++j) {
-          if (i < orow && j < ocol) {
-            arr.push(data.tiles[i][j])
+          if (i < mapTilesRowNumber && j < mapTilesColNumber) {
+            arr.push(props.data.tiles[i][j])
           } else {
             arr.push(defaultMapTileData())
           }
         }
         newMapTiles.push(arr)
       }
-      setData({
-        ...data,
+      props.setData({
+        ...props.data,
         tiles: newMapTiles,
       })
       return true
     },
-    [data, data.tiles]
+    [props.setData, props.data, props.data.tiles, mapTilesRowNumber, mapTilesColNumber]
   )
 
   /**
@@ -102,15 +59,15 @@ export default function MapPage(props: Props) {
    */
   const updateMapTile = useCallback(
     (d: MapTileData) => {
-      const newMapTiles = data.tiles.map((row) => [...row])
+      const newMapTiles = props.data.tiles.map((row) => [...row])
       newMapTiles[i][j] = d
-      setData({
-        ...data,
+      props.setData({
+        ...props.data,
         tiles: newMapTiles,
       })
       return true
     },
-    [data, data.tiles, i, j]
+    [props.setData, props.data, props.data.tiles, i, j]
   )
 
   /**
@@ -118,20 +75,20 @@ export default function MapPage(props: Props) {
    */
   useEffect(() => {
     // TODO: 空文字列になった場合、canvasをクリアする。
-    if (data.image === '') {
+    if (props.data.image === '') {
       return
     }
-    const path = `${props.rootPath}/${data.image}`
+    const path = `${props.rootPath}/${props.data.image}`
     const img = new Image()
     img.onload = () => setImage(img)
     img.onerror = () => message(`${path}の読み込みに失敗しました。`)
     img.src = convertFileSrc(path)
-  }, [data.image])
+  }, [props.rootPath, props.data, props.data.image])
 
   return (
-    <Container>
+    <>
       <Content>
-        {data.tiles.map((row, ri) => (
+        {props.data.tiles.map((row, ri) => (
           <MapTileRow key={ri}>
             {row.map((n, ci) => (
               <MapTileContainer
@@ -141,9 +98,16 @@ export default function MapPage(props: Props) {
                   setJ(ci)
                 }}
               >
-                <MapTile
+                <Canvas
                   image={image}
-                  data={n}
+                  left={n.uv.left}
+                  top={n.uv.top}
+                  right={n.uv.right}
+                  bottom={n.uv.bottom}
+                  width={48}
+                  height={48}
+                  styleWidth={48}
+                  styleHeight={48}
                 />
               </MapTileContainer>
             ))}
@@ -157,10 +121,10 @@ export default function MapPage(props: Props) {
         <Box label='MAP SETTINGS'>
           <SettingItem label='texture'>
             <TextInput
-              value={data.image}
+              value={props.data.image}
               onChange={(path) => {
-                setData({
-                  ...data,
+                props.setData({
+                  ...props.data,
                   image: path,
                 })
                 return true
@@ -192,10 +156,10 @@ export default function MapPage(props: Props) {
               allowDecimal={true}
               min={0}
               max={1}
-              value={data.tiles[i][j].uv.left}
+              value={props.data.tiles[i][j].uv.left}
               onChange={(n) =>
                 updateMapTile({
-                  uv: {...data.tiles[i][j].uv, left: n},
+                  uv: {...props.data.tiles[i][j].uv, left: n},
                 })
               }
             />
@@ -205,10 +169,10 @@ export default function MapPage(props: Props) {
               allowDecimal={true}
               min={0}
               max={1}
-              value={data.tiles[i][j].uv.top}
+              value={props.data.tiles[i][j].uv.top}
               onChange={(n) =>
                 updateMapTile({
-                  uv: {...data.tiles[i][j].uv, top: n},
+                  uv: {...props.data.tiles[i][j].uv, top: n},
                 })
               }
             />
@@ -218,10 +182,10 @@ export default function MapPage(props: Props) {
               allowDecimal={true}
               min={0}
               max={1}
-              value={data.tiles[i][j].uv.right}
+              value={props.data.tiles[i][j].uv.right}
               onChange={(n) =>
                 updateMapTile({
-                  uv: {...data.tiles[i][j].uv, right: n},
+                  uv: {...props.data.tiles[i][j].uv, right: n},
                 })
               }
             />
@@ -231,25 +195,38 @@ export default function MapPage(props: Props) {
               allowDecimal={true}
               min={0}
               max={1}
-              value={data.tiles[i][j].uv.bottom}
+              value={props.data.tiles[i][j].uv.bottom}
               onChange={(n) =>
                 updateMapTile({
-                  uv: {...data.tiles[i][j].uv, bottom: n},
+                  uv: {...props.data.tiles[i][j].uv, bottom: n},
                 })
               }
             />
           </SettingItem>
         </Box>
       </Sidebar>
-    </Container>
+    </>
   )
 }
 
-const Container = styled.div`
-  display: flex;
-  width: 100%;
-  height: 100%;
-`
+type Props = {
+  rootPath: string
+  path: string
+  data: MapData
+  saved: React.MutableRefObject<boolean>
+}
+
+export default function MapPage(props: Props) {
+  return (
+    <EditPage
+      Child={MapPageBody}
+      data={props.data}
+      path={props.path}
+      saved={props.saved}
+      info={{rootPath: props.rootPath}}
+    />
+  )
+}
 
 const Content = styled.div`
   flex-grow: 1;
