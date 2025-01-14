@@ -10,6 +10,62 @@ use glam::*;
 use std::collections::HashMap;
 use winit::keyboard::KeyCode;
 
+pub mod actor1 {
+    use super::*;
+    fn idle_uv(direction: ActorDirection, time: f32) -> Vec4 {
+        match direction {
+            ActorDirection::Left => {
+                if time >= 0.0 { return Vec4::new(0.0, 0.0, 0.1875, 0.25); }
+                return Vec4::new(0.0, 0.0, 1.0, 1.0);
+            }
+            ActorDirection::Right => {
+                if time >= 0.0 { return Vec4::new(0.0, 0.25, 0.1875, 0.25); }
+                return Vec4::new(0.0, 0.0, 1.0, 1.0);
+            }
+            ActorDirection::Up => {
+                if time >= 0.0 { return Vec4::new(0.0, 0.5, 0.1875, 0.25); }
+                return Vec4::new(0.0, 0.0, 1.0, 1.0);
+            }
+            ActorDirection::Down => {
+                if time >= 0.0 { return Vec4::new(0.0, 0.75, 0.1875, 0.25); }
+                return Vec4::new(0.0, 0.0, 1.0, 1.0);
+            }
+        }
+    }
+    fn moving_uv(direction: ActorDirection, time: f32) -> Vec4 {
+        match direction {
+            ActorDirection::Left => {
+                if time >= 0.666 { return Vec4::new(0.375, 0.0, 0.1875, 0.25); }
+                if time >= 0.333 { return Vec4::new(0.1875, 0.0, 0.1875, 0.25); }
+                if time >= 0.0 { return Vec4::new(0.0, 0.0, 0.1875, 0.25); }
+                return Vec4::new(0.0, 0.0, 1.0, 1.0);
+            }
+            ActorDirection::Right => {
+                if time >= 0.666 { return Vec4::new(0.375, 0.25, 0.1875, 0.25); }
+                if time >= 0.333 { return Vec4::new(0.1875, 0.25, 0.1875, 0.25); }
+                if time >= 0.0 { return Vec4::new(0.0, 0.25, 0.1875, 0.25); }
+                return Vec4::new(0.0, 0.0, 1.0, 1.0);
+            }
+            ActorDirection::Up => {
+                if time >= 0.666 { return Vec4::new(0.375, 0.5, 0.1875, 0.25); }
+                if time >= 0.333 { return Vec4::new(0.1875, 0.5, 0.1875, 0.25); }
+                if time >= 0.0 { return Vec4::new(0.0, 0.5, 0.1875, 0.25); }
+                return Vec4::new(0.0, 0.0, 1.0, 1.0);
+            }
+            ActorDirection::Down => {
+                if time >= 0.666 { return Vec4::new(0.375, 0.75, 0.1875, 0.25); }
+                if time >= 0.333 { return Vec4::new(0.1875, 0.75, 0.1875, 0.25); }
+                if time >= 0.0 { return Vec4::new(0.0, 0.75, 0.1875, 0.25); }
+                return Vec4::new(0.0, 0.0, 1.0, 1.0);
+            }
+        }
+    }
+    pub fn init(mngrs: &mut Managers, i: usize, j: usize) -> Actor {
+        let _ = mngrs.gr_mngr.load_image(&mut mngrs.rs_mngr, "actor1.png");
+        Actor::new(i, j, 48.0, 64.0, 240.0, "actor1.png", idle_uv, moving_uv)
+    }
+}
+
 pub mod first {
     use super::*;
     pub fn init(mngrs: &mut Managers) -> MapScene {

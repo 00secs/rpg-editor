@@ -14,12 +14,14 @@ import {
 import {ask, message} from '@tauri-apps/plugin-dialog'
 import Sidebar from './helper/Sidebar'
 import Box from './helper/Box'
-import {VscMapFilled, VscNewFile} from 'react-icons/vsc'
+import {VscAccount, VscMapFilled, VscNewFile} from 'react-icons/vsc'
 import {defaultMapData, parseMapData} from './pages/map/types'
 import Prompt from './helper/Propmpt'
 import {build, parseProject, Project} from './util/build'
+import {defaultActorData, parseActorData} from './pages/actor/types'
+import ActorPage from './pages/actor/ActorPage'
 
-type PageType = 'map'
+type PageType = 'actor' | 'map'
 type PageTypeWithNull = PageType | null
 
 export default function App() {
@@ -57,9 +59,24 @@ export default function App() {
         return
       }
       switch (type) {
+        case 'actor':
+          const adata = parseActorData(response.content)
+          if (!adata) {
+            message(`${path}は無効なデータです。`)
+            return
+          }
+          setPage(
+            <ActorPage
+              rootPath={rootPath}
+              path={path}
+              data={adata}
+              saved={saved}
+            />
+          )
+          break
         case 'map':
-          const data = parseMapData(response.content)
-          if (!data) {
+          const mdata = parseMapData(response.content)
+          if (!mdata) {
             message(`${path}は無効なデータです。`)
             return
           }
@@ -67,7 +84,7 @@ export default function App() {
             <MapPage
               rootPath={rootPath}
               path={path}
-              data={data}
+              data={mdata}
               saved={saved}
             />
           )
@@ -82,22 +99,32 @@ export default function App() {
       if (!project) {
         return
       }
-      // ファイル作成
-      const nfr = await sendNewFile(`${rootPath}/${path}`, JSON.stringify(defaultMapData()))
-      if (!nfr) {
-        message(`${rootPath}/${path}の作成に失敗しました。`)
-        return
-      }
       // 追加
+      let nfr = false
       let newProject = project
       switch (type) {
+        case 'actor':
+          nfr = await sendNewFile(`${rootPath}/${path}`, JSON.stringify(defaultActorData()))
+          const newActors = [...project.actors]
+          newActors.push(path)
+          newProject = {
+            ...project,
+            actors: newActors.sort(),
+          }
+          break
         case 'map':
+          nfr = await sendNewFile(`${rootPath}/${path}`, JSON.stringify(defaultMapData()))
           const newMaps = [...project.maps]
           newMaps.push(path)
           newProject = {
+            ...project,
             maps: newMaps.sort(),
           }
           break
+      }
+      if (!nfr) {
+        message(`${rootPath}/${path}の作成に失敗しました。`)
+        return
       }
       setProject(newProject)
       // 保存
@@ -147,6 +174,21 @@ export default function App() {
               initialWidth={200}
               isLeft={true}
             >
+              <Box label='ACTORS'>
+                <File onClick={() => setPromptState('actor')}>
+                  <VscNewFile />
+                  <label>New Actor</label>
+                </File>
+                {project.actors.map((n, i) => (
+                  <File
+                    key={i}
+                    onClick={() => selectFile('actor', n)}
+                  >
+                    <VscAccount />
+                    <label>{n}</label>
+                  </File>
+                ))}
+              </Box>
               <Box label='MAPS'>
                 <File onClick={() => setPromptState('map')}>
                   <VscNewFile />
