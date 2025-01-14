@@ -38,7 +38,7 @@ pub fn open_workspace(app: &AppHandle) {
                 }
             }
         } else {
-            "{\"maps\":[]}".to_string()
+            "{\"actors\":[],\"maps\":[]}".to_string()
         };
         // クライアントへ送信
         let payload = OpenWorkspacePayload {

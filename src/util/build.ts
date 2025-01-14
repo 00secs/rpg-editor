@@ -1,8 +1,10 @@
 import {message, save} from '@tauri-apps/plugin-dialog'
 import {MapData, parseMapData} from '../pages/map/types'
 import {sendReadFile, sendSaveFile} from './api'
+import { ActorData, parseActorData, UVFunc, UVFuncPoint } from '../pages/actor/types'
 
 export type Project = {
+  actors: string[]
   maps: string[]
 }
 export function parseProject(s: string): Project | null {
@@ -15,6 +17,8 @@ export function parseProject(s: string): Project | null {
   const check =
     typeof o === 'object' &&
     o !== null &&
+    Array.isArray(o.actors) &&
+    o.actors.every((n: any) => typeof n === 'string') &&
     Array.isArray(o.maps) &&
     o.maps.every((n: any) => typeof n === 'string')
   return check ? o : null
@@ -22,6 +26,48 @@ export function parseProject(s: string): Project | null {
 
 function float(num: number): string {
   return Number.isInteger(num) ? `${num}.0` : String(num)
+}
+
+function buildActor(name: string, data: ActorData): string {
+  function buildUVFuncPoint(points: UVFuncPoint[]): string {
+    let s = ""
+    for (const p of points.reverse()) {
+      s += `                if time >= ${float(p.time)} { return Vec4::new(${float(p.l)}, ${float(p.t)}, ${float(p.w)}, ${float(p.h)}); }\n`
+    }
+    s += `                return Vec4::new(0.0, 0.0, 1.0, 1.0);`
+    return s
+  }
+  function buildUVFunc(fname: string, func: UVFunc): string {
+    return `\
+    fn ${fname}(direction: ActorDirection, time: f32) -> Vec4 {
+        match direction {
+            ActorDirection::Left => {
+${buildUVFuncPoint(func.left)}
+            }
+            ActorDirection::Right => {
+${buildUVFuncPoint(func.right)}
+            }
+            ActorDirection::Up => {
+${buildUVFuncPoint(func.up)}
+            }
+            ActorDirection::Down => {
+${buildUVFuncPoint(func.down)}
+            }
+        }
+    }`
+  }
+
+  return `
+pub mod ${name} {
+    use super::*;
+${buildUVFunc('idle_uv', data.idle)}
+${buildUVFunc('moving_uv', data.moving)}
+    pub fn init(mngrs: &mut Managers, i: usize, j: usize) -> Actor {
+        let _ = mngrs.gr_mngr.load_image(&mut mngrs.rs_mngr, "${data.image}");
+        Actor::new(i, j, ${float(data.width)}, ${float(data.height)}, 240.0, "${data.image}", idle_uv, moving_uv)
+    }
+}
+`
 }
 
 function buildMap(name: string, data: MapData): string {
@@ -73,6 +119,20 @@ use glam::*;
 use std::collections::HashMap;
 use winit::keyboard::KeyCode;
 `
+  for (const name of project.actors) {
+    const path = `${rootPath}/${name}`
+    const response = await sendReadFile(path)
+    if (!response.ok) {
+      message(response.content)
+      return
+    }
+    const data = parseActorData(response.content)
+    if (!data) {
+      message(`${path}は無効なデータです。`)
+      return
+    }
+    code += buildActor(name, data)
+  }
   for (const name of project.maps) {
     const path = `${rootPath}/${name}`
     const response = await sendReadFile(path)
