@@ -1,3 +1,5 @@
+import {Code, isCode} from '../../util/types'
+
 function isExpectedArray(value: any, f: (_: any) => boolean): boolean {
   return Array.isArray(value) && value.length > 0 && value.every(f)
 }
@@ -8,6 +10,7 @@ export type ActorData = {
   height: number
   idle: UVFunc
   moving: UVFunc
+  events: Code[]
 }
 export function isActorData(value: any): value is ActorData {
   return (
@@ -17,7 +20,9 @@ export function isActorData(value: any): value is ActorData {
     typeof value.width === 'number' &&
     typeof value.height === 'number' &&
     isUVFunc(value.idle) &&
-    isUVFunc(value.moving)
+    isUVFunc(value.moving) &&
+    Array.isArray(value.events) &&
+    value.events.every(isCode)
   )
 }
 export function parseActorData(s: string): ActorData | null {
@@ -35,6 +40,7 @@ export function defaultActorData(): ActorData {
     height: 48,
     idle: defaultUVFunc(),
     moving: defaultUVFunc(),
+    events: [],
   }
 }
 

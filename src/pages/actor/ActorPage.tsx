@@ -10,6 +10,11 @@ import SettingItem from '../../helper/SettingItem'
 import NumberInput from '../../helper/form/NumberInput'
 import TextInput from '../../helper/form/TextInput'
 import ActorRow from './ActorRow'
+import CodeEditor from '../../helper/CodeEditor'
+import {VscAdd, VscCode} from 'react-icons/vsc'
+import Prompt from '../../helper/Propmpt'
+import Item from '../../helper/Item'
+import SettingItems from '../../helper/SettingItems'
 
 type ChildProps = EditPageChildProps<ActorData, {rootPath: string}>
 type UVFuncType = 'idle' | 'moving'
@@ -20,6 +25,8 @@ function ActorPageBody(props: ChildProps) {
   const [uvFuncType, setUVFuncType] = useState<UVFuncType>('idle')
   const [uvFuncDirection, setUVFuncDirection] = useState<UVFuncDirection>('left')
   const [i, setI] = useState(0)
+  const [eventIndex, setEventIndex] = useState<number | null>(null)
+  const [promptState, setPromptState] = useState(false)
 
   const selectedPoint = props.data[uvFuncType][uvFuncDirection][i]
 
@@ -65,78 +72,92 @@ function ActorPageBody(props: ChildProps) {
   return (
     <>
       <Content>
-        <ActorRow
-          label='IDLE [left]'
-          image={image}
-          width={props.data.width}
-          height={props.data.height}
-          points={props.data.idle.left}
-          onSelect={(i) => selectUVFuncPoint('idle', 'left', i)}
-          onAdd={() => addUVFuncPoint('idle', 'left')}
-        />
-        <ActorRow
-          label='IDLE [right]'
-          image={image}
-          width={props.data.width}
-          height={props.data.height}
-          points={props.data.idle.right}
-          onSelect={(i) => selectUVFuncPoint('idle', 'right', i)}
-          onAdd={() => addUVFuncPoint('idle', 'right')}
-        />
-        <ActorRow
-          label='IDLE [up]'
-          image={image}
-          width={props.data.width}
-          height={props.data.height}
-          points={props.data.idle.up}
-          onSelect={(i) => selectUVFuncPoint('idle', 'up', i)}
-          onAdd={() => addUVFuncPoint('idle', 'up')}
-        />
-        <ActorRow
-          label='IDLE [down]'
-          image={image}
-          width={props.data.width}
-          height={props.data.height}
-          points={props.data.idle.down}
-          onSelect={(i) => selectUVFuncPoint('idle', 'down', i)}
-          onAdd={() => addUVFuncPoint('idle', 'down')}
-        />
-        <ActorRow
-          label='MOVING [left]'
-          image={image}
-          width={props.data.width}
-          height={props.data.height}
-          points={props.data.moving.left}
-          onSelect={(i) => selectUVFuncPoint('moving', 'left', i)}
-          onAdd={() => addUVFuncPoint('moving', 'left')}
-        />
-        <ActorRow
-          label='MOVING [right]'
-          image={image}
-          width={props.data.width}
-          height={props.data.height}
-          points={props.data.moving.right}
-          onSelect={(i) => selectUVFuncPoint('moving', 'right', i)}
-          onAdd={() => addUVFuncPoint('moving', 'right')}
-        />
-        <ActorRow
-          label='MOVING [up]'
-          image={image}
-          width={props.data.width}
-          height={props.data.height}
-          points={props.data.moving.up}
-          onSelect={(i) => selectUVFuncPoint('moving', 'up', i)}
-          onAdd={() => addUVFuncPoint('moving', 'up')}
-        />
-        <ActorRow
-          label='MOVING [down]'
-          image={image}
-          width={props.data.width}
-          height={props.data.height}
-          points={props.data.moving.down}
-          onSelect={(i) => selectUVFuncPoint('moving', 'down', i)}
-          onAdd={() => addUVFuncPoint('moving', 'down')}
-        />
+        {eventIndex !== null ? (
+          <CodeEditor
+            code={props.data.events[eventIndex].code}
+            onEdit={(code) => {
+              // TODO: これで問題ないか？
+              props.data.events[eventIndex].code = code
+              props.setData(props.data)
+            }}
+            onExit={() => setEventIndex(null)}
+          />
+        ) : (
+          <>
+            <ActorRow
+              label='IDLE [left]'
+              image={image}
+              width={props.data.width}
+              height={props.data.height}
+              points={props.data.idle.left}
+              onSelect={(i) => selectUVFuncPoint('idle', 'left', i)}
+              onAdd={() => addUVFuncPoint('idle', 'left')}
+            />
+            <ActorRow
+              label='IDLE [right]'
+              image={image}
+              width={props.data.width}
+              height={props.data.height}
+              points={props.data.idle.right}
+              onSelect={(i) => selectUVFuncPoint('idle', 'right', i)}
+              onAdd={() => addUVFuncPoint('idle', 'right')}
+            />
+            <ActorRow
+              label='IDLE [up]'
+              image={image}
+              width={props.data.width}
+              height={props.data.height}
+              points={props.data.idle.up}
+              onSelect={(i) => selectUVFuncPoint('idle', 'up', i)}
+              onAdd={() => addUVFuncPoint('idle', 'up')}
+            />
+            <ActorRow
+              label='IDLE [down]'
+              image={image}
+              width={props.data.width}
+              height={props.data.height}
+              points={props.data.idle.down}
+              onSelect={(i) => selectUVFuncPoint('idle', 'down', i)}
+              onAdd={() => addUVFuncPoint('idle', 'down')}
+            />
+            <ActorRow
+              label='MOVING [left]'
+              image={image}
+              width={props.data.width}
+              height={props.data.height}
+              points={props.data.moving.left}
+              onSelect={(i) => selectUVFuncPoint('moving', 'left', i)}
+              onAdd={() => addUVFuncPoint('moving', 'left')}
+            />
+            <ActorRow
+              label='MOVING [right]'
+              image={image}
+              width={props.data.width}
+              height={props.data.height}
+              points={props.data.moving.right}
+              onSelect={(i) => selectUVFuncPoint('moving', 'right', i)}
+              onAdd={() => addUVFuncPoint('moving', 'right')}
+            />
+            <ActorRow
+              label='MOVING [up]'
+              image={image}
+              width={props.data.width}
+              height={props.data.height}
+              points={props.data.moving.up}
+              onSelect={(i) => selectUVFuncPoint('moving', 'up', i)}
+              onAdd={() => addUVFuncPoint('moving', 'up')}
+            />
+            <ActorRow
+              label='MOVING [down]'
+              image={image}
+              width={props.data.width}
+              height={props.data.height}
+              points={props.data.moving.down}
+              onSelect={(i) => selectUVFuncPoint('moving', 'down', i)}
+              onAdd={() => addUVFuncPoint('moving', 'down')}
+            />
+          </>
+        )}
       </Content>
       <Sidebar
         initialWidth={200}
@@ -185,6 +206,23 @@ function ActorPageBody(props: ChildProps) {
               }}
             />
           </SettingItem>
+          <SettingItems label='events'>
+            <Item
+              Icon={VscAdd}
+              label='New'
+              selected={false}
+              onClick={() => setPromptState(true)}
+            />
+            {props.data.events.map((n, i) => (
+              <Item
+                key={i}
+                Icon={VscCode}
+                label={n.name}
+                selected={eventIndex === i}
+                onClick={() => setEventIndex(i)}
+              />
+            ))}
+          </SettingItems>
         </Box>
         <Box label='UV FUNC SETTINGS'>
           <SettingItem label='time'>
@@ -259,6 +297,22 @@ function ActorPageBody(props: ChildProps) {
           </SettingItem>
         </Box>
       </Sidebar>
+      {promptState && (
+        <Prompt
+          label='コード名を入力してください。'
+          onBlur={(value) => {
+            if (value === '') {
+              message('ファイル名に空文字列は指定できません。')
+              return
+            }
+            // TOTO: これで問題ないか？
+            props.data.events.push({name: value, code: ''})
+            props.data.events = props.data.events.sort((a, b) => (a.name < b.name ? -1 : 1))
+            props.setData(props.data)
+            setPromptState(false)
+          }}
+        />
+      )}
     </>
   )
 }
@@ -284,4 +338,6 @@ export default function ActorPage(props: Props) {
 
 const Content = styled.div`
   flex-grow: 1;
+  display: flex;
+  flex-flow: column;
 `

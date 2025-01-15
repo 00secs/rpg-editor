@@ -1,7 +1,7 @@
 import {message, save} from '@tauri-apps/plugin-dialog'
 import {MapData, parseMapData} from '../pages/map/types'
 import {sendReadFile, sendSaveFile} from './api'
-import { ActorData, parseActorData, UVFunc, UVFuncPoint } from '../pages/actor/types'
+import {ActorData, parseActorData, UVFunc, UVFuncPoint} from '../pages/actor/types'
 
 export type Project = {
   actors: string[]
@@ -30,7 +30,7 @@ function float(num: number): string {
 
 function buildActor(name: string, data: ActorData): string {
   function buildUVFuncPoint(points: UVFuncPoint[]): string {
-    let s = ""
+    let s = ''
     for (const p of points.reverse()) {
       s += `                if time >= ${float(p.time)} { return Vec4::new(${float(p.l)}, ${float(p.t)}, ${float(p.w)}, ${float(p.h)}); }\n`
     }
@@ -56,15 +56,33 @@ ${buildUVFuncPoint(func.down)}
         }
     }`
   }
+  function buildEvents(): string {
+    let s = ''
+    for (const n of data.events) {
+      s += `\
+    fn ${n.name}(this: &mut Actor, mngrs: &mut Managers, coms: &mut Components, duration: Duration) -> bool {
+${n.code}
+    }
+`
+    }
+    return s
+  }
+
+  let events = '        let mut events = Vec::<ActorEvent>::new();\n'
+  for (const n of data.events) {
+    events += `        events.push(${n.name});\n`
+  }
 
   return `
 pub mod ${name} {
     use super::*;
 ${buildUVFunc('idle_uv', data.idle)}
 ${buildUVFunc('moving_uv', data.moving)}
+${buildEvents()}
     pub fn init(mngrs: &mut Managers, i: usize, j: usize) -> Actor {
         let _ = mngrs.gr_mngr.load_image(&mut mngrs.rs_mngr, "${data.image}");
-        Actor::new(i, j, ${float(data.width)}, ${float(data.height)}, 240.0, "${data.image}", idle_uv, moving_uv)
+${events}
+        Actor::new(i, j, ${float(data.width)}, ${float(data.height)}, 240.0, "${data.image}", idle_uv, moving_uv, events)
     }
 }
 `
@@ -117,6 +135,7 @@ export async function build(rootPath: string, project: Project) {
 use crate::{client::{component::*, scene::map::MapScene}, engine::Managers};
 use glam::*;
 use std::collections::HashMap;
+use std::time::Duration;
 use winit::keyboard::KeyCode;
 `
   for (const name of project.actors) {
